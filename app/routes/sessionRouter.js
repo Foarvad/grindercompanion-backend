@@ -3,16 +3,16 @@ const router = express.Router();
 
 const Session = require('../models/sessionModel');
 const userMiddleware = require('../middlewares/userMiddleware');
+const sessionMiddleware = require('../middlewares/sessionMiddleware');
 
 // Get session
-router.get('/', userMiddleware, async (req, res) => {
+router.get('/', userMiddleware, sessionMiddleware, async (req, res) => {
   try {
-    const session = await Session.findOne({ userName: req.user.name });
-    if (!session) {
+    if (!res.session) {
       res.status(404).json({ message: 'Session not found' });
       return;
     }
-    res.json(session);
+    res.json(res.session);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -20,10 +20,10 @@ router.get('/', userMiddleware, async (req, res) => {
 
 
 // Create new session
-router.post('/', userMiddleware, async (req, res) => {
-  const existingSession = await Session.findOne({ userName: req.user.name });
-  if (existingSession) {
+router.post('/', userMiddleware, sessionMiddleware, async (req, res) => {
+  if (res.session) {
     res.status(400).json({ message: 'Session already exists' });
+    return;
   }
 
   const { startTime, totalMoney, cooldowns } = req.body;
@@ -33,15 +33,13 @@ router.post('/', userMiddleware, async (req, res) => {
     return;
   }
 
-  const session = new Session({
-    userName: req.user.name,
-    startTime,
-    totalMoney,
-    cooldowns,
-  });
-
   try {
-    const newSession = await session.save();
+    const newSession = await Session.create({
+      userName: req.user.name,
+      startTime,
+      totalMoney,
+      cooldowns,
+    });
     res.status(201).json(newSession);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -49,9 +47,8 @@ router.post('/', userMiddleware, async (req, res) => {
 });
 
 // Update session
-router.patch('/', userMiddleware, async (req, res) => {
-  const session = await Session.findOne({ userName: req.user.name });
-  if (!session) {
+router.patch('/', userMiddleware, sessionMiddleware, async (req, res) => {
+  if (!res.session) {
     res.status(400).json({ message: 'Session not found' });
   }
 
